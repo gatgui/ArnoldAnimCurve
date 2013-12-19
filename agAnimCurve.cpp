@@ -6,6 +6,7 @@ AI_SHADER_NODE_EXPORT_METHODS(agAnimCurveMtd);
 enum AnimCurveParams
 {
    p_input = 0,
+   p_input_is_frame,
    p_positions,
    p_values,
    p_interpolations,
@@ -15,7 +16,7 @@ enum AnimCurveParams
    p_out_weights,
    p_default_interpolation,
    p_pre_infinity,
-   p_post_infinity
+   p_post_infinity,
 };
 
 enum Interpolation
@@ -50,21 +51,16 @@ static const char* InfinityNames[] =
    "mirror"
 };
 
-struct ThreadData
-{
-   gmath::Polynomial polies[2];
-};
-
 struct NodeData
 {
    gmath::TCurve<float> *curve;
-   bool weighted;
-   ThreadData *tdata;
+   AtArray *samples;
 };
 
 node_parameters
 {
    AiParameterFlt("input", 0.0f);
+   AiParameterBool("input_is_frame", true); // disregard input param and use options "frame" as input
    AiParameterArray("positions", AiArrayAllocate(0, 0, AI_TYPE_FLOAT));
    AiParameterArray("values", AiArrayAllocate(0, 0, AI_TYPE_FLOAT));
    AiParameterArray("interpolations", AiArrayAllocate(0, 0, AI_TYPE_ENUM)); // can be empty
@@ -76,6 +72,7 @@ node_parameters
    AiParameterEnum("pre_infinity", 0, InfinityNames);
    AiParameterEnum("post_infinity", 0, InfinityNames);
 
+   AiMetaDataSetBool(mds, "input_is_frame", "linkable", false);
    AiMetaDataSetBool(mds, "positions", "linkable", false);
    AiMetaDataSetBool(mds, "values", "linkable", false);
    AiMetaDataSetBool(mds, "interpolations", "linkable", false);
@@ -93,8 +90,7 @@ node_initialize
 {
    NodeData *data = (NodeData*) AiMalloc(sizeof(NodeData));
    data->curve = 0;
-   data->weighted = false;
-   data->tdata = 0;
+   data->samples = 0;
    AiNodeSetLocalData(node, data);
 }
 
@@ -102,13 +98,13 @@ node_update
 {
    NodeData *data = (NodeData*) AiNodeGetLocalData(node);
    
-   if (data->tdata)
+   if (data->samples)
    {
-      delete[] data->tdata;
-      data->tdata = NULL;
+      AiArrayDestroy(data->samples);
+      data->samples = 0;
    }
-
-   data->weighted = false;
+   
+   bool weighted = false;
 
    AtArray *p = AiNodeGetArray(node, "positions");
    AtArray *v = AiNodeGetArray(node, "values");
@@ -171,13 +167,14 @@ node_update
          }
          else
          {
-            data->weighted = true;
+            weighted = true;
          }
       }
 
       if (!data->curve)
       {
          data->curve = new gmath::TCurve<float>();
+         data->curve->setWeighted(weighted);
       }
 
       data->curve->removeAll();
@@ -191,26 +188,88 @@ node_update
          data->curve->setInterpolation(idx, (gmath::Curve::Interpolation)(has_interpolations ? AiArrayGetInt(i, k) : defi));
          data->curve->setInTangent(idx, gmath::Curve::T_CUSTOM, AiArrayGetFlt(is, k));
          data->curve->setOutTangent(idx, gmath::Curve::T_CUSTOM, AiArrayGetFlt(os, k));
-         if (data->weighted)
+         if (weighted)
          {
             data->curve->setInWeight(idx, AiArrayGetFlt(iw, k));
             data->curve->setOutWeight(idx, AiArrayGetFlt(ow, k));
          }
       }      
    }
-
-   if (data->weighted)
+   
+   // Bake curve samples
+   if (data->curve && AiNodeGetBool(node, "input_is_frame"))
    {
-      // Init per-thread data storage
-      AtNode* opts = AiUniverseGetOptions();
-      int nthreads = AiNodeGetInt(opts, "threads");
-
-      data->tdata = new ThreadData[nthreads];
-
-      for (int i=0; i<nthreads; ++i)
+      AtNode *opts = AiUniverseGetOptions();
+      if (AiNodeLookUpUserParameter(opts, "frame") != 0)
       {
-         data->tdata[i].polies[0].setDegree(3);
-         data->tdata[i].polies[1].setDegree(3);
+         float frame = AiNodeGetFlt(opts, "frame");
+         float mstart = frame;
+         float mend = frame;
+         float fincr = 0.0f;
+         int steps = 1;
+         int step = 0;
+         
+         if (AiNodeLookUpUserParameter(opts, "motion_start_frame") != 0 &&
+             AiNodeLookUpUserParameter(opts, "motion_end_frame") != 0)
+         {
+            mstart = AiNodeGetFlt(opts, "motion_start_frame");
+            mend = AiNodeGetFlt(opts, "motion_end_frame");
+            
+            if (mstart > mend || frame < mstart || frame > mend)
+            {
+               AiMsgWarning("[agAnimCurve] Invalid values \"motion_start_frame\" and \"motion_end_frame\" parameters on options node. Default both to %f", frame);
+               mstart = frame;
+               mend = frame;
+            }
+            
+            if (mend > mstart)
+            {
+               steps = 2;
+               if (frame > mstart && frame < mend)
+               {
+                  steps = 3;
+               }
+            }
+            
+            if (AiNodeLookUpUserParameter(opts, "motion_steps") != 0)
+            {
+               int tmp = AiNodeGetInt(opts, "motions_steps");
+               if (tmp > 0)
+               {
+                  steps = tmp;
+               }
+               else
+               {
+                  AiMsgWarning("[agAnimCurve] Invalid value for \"motion_steps\" parameter on options node. Default to %d", steps);
+               }
+            }
+            else
+            {
+               AiMsgWarning("[agAnimCurve] No \"motion_steps\" parameter on options node. Default to %d", steps);
+            }
+            
+            fincr = mend - mstart;
+            if (steps > 1)
+            {
+               fincr /= float(steps - 1);
+            }
+            
+            data->samples = AiArrayAllocate(1, steps, AI_TYPE_FLOAT);
+            
+            for (float f=mstart; f<=mend; f+=fincr, ++step)
+            {
+               AiArraySetFlt(data->samples, step, data->curve->eval(f));
+            }
+         }
+         else
+         {
+            AiMsgWarning("[agAnimCurve] No \"motion_start_frame\" and/or \"motion_end_frame\" parameters on options node. Bake a single sample");
+         }
+         // bake samples
+      }
+      else
+      {
+         AiMsgWarning("[agAnimCurve] No \"frame\" parameter on options node. Cannot bake curve samples");
       }
    }
 }
@@ -223,9 +282,9 @@ node_finish
    {
       delete data->curve;
    }
-   if (data->tdata)
+   if (data->samples)
    {
-      delete[] data->tdata;
+      AiArrayDestroy(data->samples);
    }
    AiFree(data);
 }
@@ -236,9 +295,13 @@ shader_evaluate
    
    float rv = 0.0f;
 
-   if (data->curve)
+   if (data->samples)
    {
-      rv = data->curve->eval(AiShaderEvalParamFlt(p_input), data->weighted, (data->weighted ? data->tdata[sg->tid].polies : NULL));
+      rv = AiArrayInterpolateFlt(data->samples, sg->time, 0);
+   }
+   else if (data->curve)
+   {
+      rv = data->curve->eval(AiShaderEvalParamFlt(p_input));
    }
 
    sg->out.FLT = rv;
