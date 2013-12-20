@@ -57,6 +57,50 @@ struct NodeData
    AtArray *samples;
 };
 
+namespace
+{
+   bool SortPositions(AtArray *a, unsigned int *sorted)
+   {
+      bool modified = false;
+
+      if (a && sorted && a->nelements > 0)
+      {
+         float p0, p1;
+         int tmp;
+
+         bool swapped = true;
+         unsigned int n = a->nelements;
+
+         for (unsigned int i=0; i<n; ++i)
+         {
+            sorted[i] = i;
+         }
+
+         while (swapped)
+         {
+            swapped = false;
+            n -= 1;
+            for (unsigned int i=0; i<n; ++i)
+            {
+               p0 = AiArrayGetFlt(a, sorted[i]);
+               p1 = AiArrayGetFlt(a, sorted[i + 1]);
+               if (p0 > p1)
+               {
+                  swapped = true;
+                  modified = true;
+
+                  tmp = sorted[i];
+                  sorted[i] = sorted[i + 1];
+                  sorted[i + 1] = tmp;
+               }
+            }
+         }
+      }
+
+      return modified;
+   }
+}
+
 node_parameters
 {
    AiParameterFlt("input", 0.0f);
@@ -105,6 +149,73 @@ node_update
    }
    
    bool weighted = false;
+   bool bake = false;
+   float frame = 0.0f;
+   float mstart = 0.0f;
+   float mend = 0.0f;
+   int msteps = 0;
+
+   if (AiNodeGetBool(node, "input_is_frame"))
+   {
+      AtNode *opts = AiUniverseGetOptions();
+      if (AiNodeLookUpUserParameter(opts, "frame") != 0)
+      {
+         frame = AiNodeGetFlt(opts, "frame");
+         mstart = frame;
+         mend = frame;
+         msteps = 1;
+         
+         if (AiNodeLookUpUserParameter(opts, "motion_start_frame") != 0 &&
+             AiNodeLookUpUserParameter(opts, "motion_end_frame") != 0)
+         {
+            mstart = AiNodeGetFlt(opts, "motion_start_frame");
+            mend = AiNodeGetFlt(opts, "motion_end_frame");
+            
+            if (mstart > mend || frame < mstart || frame > mend)
+            {
+               AiMsgWarning("[agAnimCurve] Invalid values \"motion_start_frame\" and \"motion_end_frame\" parameters on options node. Default both to %f", frame);
+               mstart = frame;
+               mend = frame;
+            }
+            
+            if (mend > mstart)
+            {
+               msteps = 2;
+               if (frame > mstart && frame < mend)
+               {
+                  msteps = 3;
+               }
+            }
+            
+            if (AiNodeLookUpUserParameter(opts, "motion_steps") != 0)
+            {
+               int tmp = AiNodeGetInt(opts, "motions_steps");
+               if (tmp > 0)
+               {
+                  msteps = tmp;
+               }
+               else
+               {
+                  AiMsgWarning("[agAnimCurve] Invalid value for \"motion_steps\" parameter on options node. Default to %d", msteps);
+               }
+            }
+            else
+            {
+               AiMsgWarning("[agAnimCurve] No \"motion_steps\" parameter on options node. Default to %d", msteps);
+            }
+         }
+         else
+         {
+            AiMsgWarning("[agAnimCurve] No \"motion_start_frame\" and/or \"motion_end_frame\" parameters on options node. Bake a single sample");
+         }
+         
+         bake = true;
+      }
+      else
+      {
+         AiMsgWarning("[agAnimCurve] No \"frame\" parameter on options node. Cannot bake curve samples");
+      }
+   }
 
    AtArray *p = AiNodeGetArray(node, "positions");
    AtArray *v = AiNodeGetArray(node, "values");
@@ -182,95 +293,47 @@ node_update
       data->curve->setPreInfinity((gmath::Curve::Infinity) AiNodeGetInt(node, "pre_infinity"));
       data->curve->setPostInfinity((gmath::Curve::Infinity) AiNodeGetInt(node, "post_infinity"));
 
+      // Sort positions
+
+      unsigned int sortedkeys = new unsigned int[p->nelements];
+
+      SortPositions(p, sortedkeys);
+
       for (unsigned int k=0; k<p->nelements; ++k)
       {
-         size_t idx = data->curve->insert(AiArrayGetFlt(p, k), AiArrayGetFlt(v, k));
-         data->curve->setInterpolation(idx, (gmath::Curve::Interpolation)(has_interpolations ? AiArrayGetInt(i, k) : defi));
-         data->curve->setInTangent(idx, gmath::Curve::T_CUSTOM, AiArrayGetFlt(is, k));
-         data->curve->setOutTangent(idx, gmath::Curve::T_CUSTOM, AiArrayGetFlt(os, k));
+         unsigned int ki = sortedkeys[k];
+         size_t idx = data->curve->insert(AiArrayGetFlt(p, ki), AiArrayGetFlt(v, ki));
+         data->curve->setInterpolation(idx, (gmath::Curve::Interpolation)(has_interpolations ? AiArrayGetInt(i, ki) : defi));
+         data->curve->setInTangent(idx, gmath::Curve::T_CUSTOM, AiArrayGetFlt(is, ki));
+         data->curve->setOutTangent(idx, gmath::Curve::T_CUSTOM, AiArrayGetFlt(os, ki));
          if (weighted)
          {
-            data->curve->setInWeight(idx, AiArrayGetFlt(iw, k));
-            data->curve->setOutWeight(idx, AiArrayGetFlt(ow, k));
+            data->curve->setInWeight(idx, AiArrayGetFlt(iw, ki));
+            data->curve->setOutWeight(idx, AiArrayGetFlt(ow, ki));
          }
-      }      
+      }
+
+      delete[] sortedkeys;
    }
    
-   // Bake curve samples
-   if (data->curve && AiNodeGetBool(node, "input_is_frame"))
+   if (data->curve && bake)
    {
-      AtNode *opts = AiUniverseGetOptions();
-      if (AiNodeLookUpUserParameter(opts, "frame") != 0)
+      float fincr = mend - mstart;
+      if (msteps > 1)
       {
-         float frame = AiNodeGetFlt(opts, "frame");
-         float mstart = frame;
-         float mend = frame;
-         float fincr = 0.0f;
-         int steps = 1;
-         int step = 0;
-         
-         if (AiNodeLookUpUserParameter(opts, "motion_start_frame") != 0 &&
-             AiNodeLookUpUserParameter(opts, "motion_end_frame") != 0)
-         {
-            mstart = AiNodeGetFlt(opts, "motion_start_frame");
-            mend = AiNodeGetFlt(opts, "motion_end_frame");
-            
-            if (mstart > mend || frame < mstart || frame > mend)
-            {
-               AiMsgWarning("[agAnimCurve] Invalid values \"motion_start_frame\" and \"motion_end_frame\" parameters on options node. Default both to %f", frame);
-               mstart = frame;
-               mend = frame;
-            }
-            
-            if (mend > mstart)
-            {
-               steps = 2;
-               if (frame > mstart && frame < mend)
-               {
-                  steps = 3;
-               }
-            }
-            
-            if (AiNodeLookUpUserParameter(opts, "motion_steps") != 0)
-            {
-               int tmp = AiNodeGetInt(opts, "motions_steps");
-               if (tmp > 0)
-               {
-                  steps = tmp;
-               }
-               else
-               {
-                  AiMsgWarning("[agAnimCurve] Invalid value for \"motion_steps\" parameter on options node. Default to %d", steps);
-               }
-            }
-            else
-            {
-               AiMsgWarning("[agAnimCurve] No \"motion_steps\" parameter on options node. Default to %d", steps);
-            }
-            
-            fincr = mend - mstart;
-            if (steps > 1)
-            {
-               fincr /= float(steps - 1);
-            }
-            
-            data->samples = AiArrayAllocate(1, steps, AI_TYPE_FLOAT);
-            
-            for (float f=mstart; f<=mend; f+=fincr, ++step)
-            {
-               AiArraySetFlt(data->samples, step, data->curve->eval(f));
-            }
-         }
-         else
-         {
-            AiMsgWarning("[agAnimCurve] No \"motion_start_frame\" and/or \"motion_end_frame\" parameters on options node. Bake a single sample");
-         }
-         // bake samples
+         fincr /= float(msteps - 1);
       }
-      else
+      
+      data->samples = AiArrayAllocate(1, msteps, AI_TYPE_FLOAT);
+
+      int step = 0;
+      
+      for (float f=mstart; f<=mend; f+=fincr, ++step)
       {
-         AiMsgWarning("[agAnimCurve] No \"frame\" parameter on options node. Cannot bake curve samples");
+         AiArraySetFlt(data->samples, step, data->curve->eval(f));
       }
+      
+      data->curve->removeAll();
    }
 }
 
