@@ -295,7 +295,7 @@ node_update
 
       // Sort positions
 
-      unsigned int sortedkeys = new unsigned int[p->nelements];
+      unsigned int *sortedkeys = new unsigned int[p->nelements];
 
       SortPositions(p, sortedkeys);
 
