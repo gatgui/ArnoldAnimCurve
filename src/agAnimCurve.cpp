@@ -6,7 +6,7 @@ AI_SHADER_NODE_EXPORT_METHODS(agAnimCurveMtd);
 enum AnimCurveParams
 {
    p_input = 0,
-   p_input_is_frame,
+   p_input_is_frame_offset,
    p_positions,
    p_values,
    p_interpolations,
@@ -57,6 +57,12 @@ struct NodeData
 {
    gmath::TCurve<float> *curve;
    AtArray *samples;
+   bool input_is_frame_offset;
+   float motion_start;
+   float motion_end;
+   float shutter_start;
+   float shutter_end;
+   float frame;
 };
 
 namespace
@@ -106,7 +112,7 @@ namespace
 node_parameters
 {
    AiParameterFlt("input", 0.0f);
-   AiParameterBool("input_is_frame", true); // disregard input param and use options "frame" as input
+   AiParameterBool("input_is_frame_offset", true); // use input param as on offset to options "frame"
    AiParameterArray("positions", AiArrayAllocate(0, 0, AI_TYPE_FLOAT));
    AiParameterArray("values", AiArrayAllocate(0, 0, AI_TYPE_FLOAT));
    AiParameterArray("interpolations", AiArrayAllocate(0, 0, AI_TYPE_INT)); // can be empty
@@ -118,7 +124,7 @@ node_parameters
    AiParameterEnum("pre_infinity", 0, InfinityNames);
    AiParameterEnum("post_infinity", 0, InfinityNames);
 
-   AiMetaDataSetBool(mds, "input_is_frame", "linkable", false);
+   AiMetaDataSetBool(mds, "input_is_frame_offset", "linkable", false);
    AiMetaDataSetBool(mds, "positions", "linkable", false);
    AiMetaDataSetBool(mds, "values", "linkable", false);
    AiMetaDataSetBool(mds, "interpolations", "linkable", false);
@@ -137,6 +143,9 @@ node_initialize
    NodeData *data = (NodeData*) AiMalloc(sizeof(NodeData));
    data->curve = 0;
    data->samples = 0;
+   data->motion_start = 0.0f;
+   data->motion_end = 0.0f;
+   data->frame = 0.0f;
    AiNodeSetLocalData(node, data);
 }
 
@@ -150,6 +159,11 @@ node_update
       data->samples = 0;
    }
    
+   data->input_is_frame_offset = AiNodeGetBool(node, "input_is_frame_offset");
+   data->motion_start = 0.0f;
+   data->motion_end = 0.0f;
+   data->frame = 0.0f;
+   
    bool weighted = false;
    bool bake = false;
    float frame = 0.0f;
@@ -157,9 +171,10 @@ node_update
    float mend = 0.0f;
    int msteps = 0;
 
-   if (AiNodeGetBool(node, "input_is_frame"))
+   if (data->input_is_frame_offset)
    {
       AtNode *opts = AiUniverseGetOptions();
+      
       if (AiNodeLookUpUserParameter(opts, "frame") != 0)
       {
          frame = AiNodeGetFlt(opts, "frame");
@@ -215,7 +230,7 @@ node_update
       }
       else
       {
-         AiMsgWarning("[agAnimCurve] No \"frame\" parameter on options node. Cannot bake curve samples");
+         AiMsgWarning("[agAnimCurve] No \"frame\" parameter on options node.");
       }
    }
 
@@ -320,22 +335,35 @@ node_update
    
    if (data->curve && bake)
    {
-      float fincr = mend - mstart;
-      if (msteps > 1)
+      // data->input_is_frame_offset is necessarilty true
+      
+      if (AiNodeIsLinked(node, "input"))
       {
-         fincr /= float(msteps - 1);
+         data->frame = frame;
+         data->motion_start = mstart;
+         data->motion_end = mend;
       }
-      
-      data->samples = AiArrayAllocate(1, msteps, AI_TYPE_FLOAT);
-
-      int step = 0;
-      
-      for (float f=mstart; f<=mend; f+=fincr, ++step)
+      else
       {
-         AiArraySetFlt(data->samples, step, data->curve->eval(f));
+         float offset = AiNodeGetFlt(node, "input");
+         
+         float fincr = mend - mstart;
+         if (msteps > 1)
+         {
+            fincr /= float(msteps - 1);
+         }
+         
+         data->samples = AiArrayAllocate(1, msteps, AI_TYPE_FLOAT);
+         
+         int step = 0;
+         
+         for (float f=mstart; f<=mend; f+=fincr, ++step)
+         {
+            AiArraySetFlt(data->samples, step, data->curve->eval(f + offset));
+         }
+         
+         data->curve->removeAll();
       }
-      
-      data->curve->removeAll();
    }
 }
 
@@ -366,7 +394,22 @@ shader_evaluate
    }
    else if (data->curve)
    {
-      rv = data->curve->eval(AiShaderEvalParamFlt(p_input));
+      float input = AiShaderEvalParamFlt(p_input);
+      
+      if (data->input_is_frame_offset)
+      {
+         if (data->motion_end <= data->motion_start)
+         {
+            // invalid motion range, always output value at frame+offset
+            input += data->frame;
+         }
+         else
+         {
+            input += data->motion_start + sg->time * (data->motion_end - data->motion_start);
+         }
+      }
+      
+      rv = data->curve->eval(input);
    }
 
    sg->out.FLT = rv;
