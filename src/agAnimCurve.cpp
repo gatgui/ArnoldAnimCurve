@@ -16,7 +16,7 @@ enum AnimCurveParams
    p_out_weights,
    p_default_interpolation,
    p_pre_infinity,
-   p_post_infinity,
+   p_post_infinity
 };
 
 enum Interpolation
@@ -30,7 +30,8 @@ static const char* InterpolationNames[] =
 {
    "step",
    "linear",
-   "spline"
+   "spline",
+   NULL
 };
 
 enum Infinity
@@ -48,7 +49,8 @@ static const char* InfinityNames[] =
    "linear",
    "loop",
    "loop_offset",
-   "mirror"
+   "mirror",
+   NULL
 };
 
 struct NodeData
@@ -107,7 +109,7 @@ node_parameters
    AiParameterBool("input_is_frame", true); // disregard input param and use options "frame" as input
    AiParameterArray("positions", AiArrayAllocate(0, 0, AI_TYPE_FLOAT));
    AiParameterArray("values", AiArrayAllocate(0, 0, AI_TYPE_FLOAT));
-   AiParameterArray("interpolations", AiArrayAllocate(0, 0, AI_TYPE_ENUM)); // can be empty
+   AiParameterArray("interpolations", AiArrayAllocate(0, 0, AI_TYPE_INT)); // can be empty
    AiParameterArray("in_tangents", AiArrayAllocate(0, 0, AI_TYPE_FLOAT)); // interpret as 'slope' -> dy/dx
    AiParameterArray("in_weights", AiArrayAllocate(0, 0, AI_TYPE_FLOAT));  // can be empty
    AiParameterArray("out_tangents", AiArrayAllocate(0, 0, AI_TYPE_FLOAT)); // interpret as 'slope' -> dy/dx
@@ -256,7 +258,7 @@ node_update
 
       if (i->nelements > 0)
       {
-         if (i->nelements == p->nelements && (i->type != AI_TYPE_ENUM || i->type != AI_TYPE_INT))
+         if (i->nelements == p->nelements && i->type == AI_TYPE_INT)
          {
             has_interpolations = true;
          }
