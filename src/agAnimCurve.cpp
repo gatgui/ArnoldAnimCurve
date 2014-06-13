@@ -116,9 +116,9 @@ node_parameters
    AiParameterArray("positions", AiArrayAllocate(0, 0, AI_TYPE_FLOAT));
    AiParameterArray("values", AiArrayAllocate(0, 0, AI_TYPE_FLOAT));
    AiParameterArray("interpolations", AiArrayAllocate(0, 0, AI_TYPE_INT)); // can be empty
-   AiParameterArray("in_tangents", AiArrayAllocate(0, 0, AI_TYPE_FLOAT)); // interpret as 'slope' -> dy/dx
+   AiParameterArray("in_tangents", AiArrayAllocate(0, 0, AI_TYPE_FLOAT)); // can be empty, interpret as 'slope' -> dy/dx
    AiParameterArray("in_weights", AiArrayAllocate(0, 0, AI_TYPE_FLOAT));  // can be empty
-   AiParameterArray("out_tangents", AiArrayAllocate(0, 0, AI_TYPE_FLOAT)); // interpret as 'slope' -> dy/dx
+   AiParameterArray("out_tangents", AiArrayAllocate(0, 0, AI_TYPE_FLOAT)); // can be empty, interpret as 'slope' -> dy/dx
    AiParameterArray("out_weights", AiArrayAllocate(0, 0, AI_TYPE_FLOAT));  // can be empty
    AiParameterEnum("default_interpolation", 0, InterpolationNames);
    AiParameterEnum("pre_infinity", 0, InfinityNames);
@@ -244,23 +244,18 @@ node_update
 
    Interpolation defi = (Interpolation) AiNodeGetInt(node, "default_interpolation");
 
-   if (p->nelements != v->nelements ||
-       p->nelements != is->nelements ||
-       p->nelements != os->nelements)
+   if (p->nelements != v->nelements)
    {
-      AiMsgWarning("[agAnimCurve] All input arrays must be of the same length");
+      AiMsgWarning("[agAnimCurve] 'positions' and 'values' input arrays must be of the same length");
       if (data->curve)
       {
          delete data->curve;
          data->curve = 0;
       }
    }
-   else if (p->type != AI_TYPE_FLOAT ||
-            v->type != AI_TYPE_FLOAT ||
-            is->type != AI_TYPE_FLOAT ||
-            os->type != AI_TYPE_FLOAT)
+   else if (p->type != AI_TYPE_FLOAT || v->type != AI_TYPE_FLOAT)
    {
-      AiMsgWarning("[agAnimCurve] All input arrays must be of type float");
+      AiMsgWarning("[agAnimCurve] 'positions' and 'values' input arrays must be of type float");
       if (data->curve)
       {
          delete data->curve;
@@ -270,7 +265,9 @@ node_update
    else
    {
       bool has_interpolations = false;
-
+      bool has_in_tangents = false;
+      bool has_out_tangents = false;
+      
       if (i->nelements > 0)
       {
          if (i->nelements == p->nelements && i->type == AI_TYPE_INT)
@@ -279,19 +276,55 @@ node_update
          }
          else
          {
-            AiMsgWarning("[agAnimCurve] Invalid interpolations type and/or size. Use 'default_interpolation'");
+            AiMsgWarning("[agAnimCurve] Invalid 'interpolations' type and/or size. All keys's interpolation type set to 'default_interpolation'.");
          }
       }
-
+      else
+      {
+         AiMsgWarning("[agAnimCurve] No 'interpolations' set. All keys's interpolation type set to 'default_interpolation'.");
+      }
+      
+      if (is->nelements > 0)
+      {
+         if (is->nelements == p->nelements && is->type == AI_TYPE_FLOAT)
+         {
+            has_in_tangents = true;
+         }
+         else
+         {
+            AiMsgWarning("[agAnimCurve] Invalid in_tangents type and/or size. All keys' input tangent set flat.");
+         }
+      }
+      else
+      {
+         AiMsgWarning("[agAnimCurve] No 'in_tangents' set. All keys' input tangent set flat.");
+      }
+      
+      if (os->nelements > 0)
+      {
+         if (os->nelements == p->nelements && os->type == AI_TYPE_FLOAT)
+         {
+            has_out_tangents = true;
+         }
+         else
+         {
+            AiMsgWarning("[agAnimCurve] Invalid out_tangents type and/or size. All keys' output tangent set flat.");
+         }
+      }
+      else
+      {
+         AiMsgWarning("[agAnimCurve] No 'out_tangents' set. All keys' output tangent set flat.");
+      }
+      
       if (iw->nelements > 0)
       {
          if (iw->nelements != p->nelements || iw->type != AI_TYPE_FLOAT)
          {
-            AiMsgWarning("[agAnimCurve] Invalid input weights type and/or size. Evaluate as non-weigted");
+            AiMsgWarning("[agAnimCurve] Invalid input weights type and/or size. Evaluate as non-weigted.");
          }
          else if (ow->nelements != p->nelements || ow->type != AI_TYPE_FLOAT)
          {
-            AiMsgWarning("[agAnimCurve] Invalid output weights type and/or size. Evaluate as non-weigted");
+            AiMsgWarning("[agAnimCurve] Invalid output weights type and/or size. Evaluate as non-weigted.");
          }
          else
          {
@@ -321,8 +354,8 @@ node_update
          unsigned int ki = sortedkeys[k];
          size_t idx = data->curve->insert(AiArrayGetFlt(p, ki), AiArrayGetFlt(v, ki));
          data->curve->setInterpolation(idx, (gmath::Curve::Interpolation)(has_interpolations ? AiArrayGetInt(i, ki) : defi));
-         data->curve->setInTangent(idx, gmath::Curve::T_CUSTOM, AiArrayGetFlt(is, ki));
-         data->curve->setOutTangent(idx, gmath::Curve::T_CUSTOM, AiArrayGetFlt(os, ki));
+         data->curve->setInTangent(idx, gmath::Curve::T_CUSTOM, (has_in_tangents ? AiArrayGetFlt(is, ki) : 0.0f));
+         data->curve->setOutTangent(idx, gmath::Curve::T_CUSTOM, (has_out_tangents ? AiArrayGetFlt(os, ki) : 0.0f));
          if (weighted)
          {
             data->curve->setInWeight(idx, AiArrayGetFlt(iw, ki));
