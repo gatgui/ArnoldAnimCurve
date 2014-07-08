@@ -14,6 +14,7 @@ prjs = [
    "srcs": glob.glob("src/*.cpp") + ["gmath/src/lib/curve.cpp",
                                      "gmath/src/lib/polynomial.cpp",
                                      "gmath/src/lib/vector.cpp"],
+   "install": {"": "src/agAnimCurve.mtd"},
    "custom": [arnold.Require]
   }
 ]

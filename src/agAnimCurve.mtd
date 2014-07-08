@@ -1,0 +1,4 @@
+[node anim_curve]
+   maya.classification STRING "shader/utility"
+   maya.id INT 0x001165F6
+
