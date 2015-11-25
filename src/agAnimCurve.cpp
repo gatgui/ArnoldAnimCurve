@@ -188,6 +188,13 @@ node_update
             mstart = AiNodeGetFlt(opts, "motion_start_frame");
             mend = AiNodeGetFlt(opts, "motion_end_frame");
             
+            if (AiNodeLookUpUserParameter(opts, "relative_motion_frame") != 0 &&
+                AiNodeGetBool(opts, "relative_motion_frame"))
+            {
+               mstart += frame;
+               mend += frame;
+            }
+            
             if (mstart > mend || frame < mstart || frame > mend)
             {
                AiMsgWarning("[agAnimCurve] Invalid values \"motion_start_frame\" and \"motion_end_frame\" parameters on options node. Default both to %f", frame);
