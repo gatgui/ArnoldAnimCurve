@@ -67,45 +67,40 @@ struct NodeData
 
 namespace
 {
-   bool SortPositions(AtArray *a, unsigned int *sorted)
+   class ComparePositions
    {
-      bool modified = false;
-
+   public:
+      
+      inline ComparePositions(AtArray *a)
+         : _a(a)
+      {
+      }
+      
+      inline bool operator()(unsigned int i0, unsigned int i1) const
+      {
+         return (AiArrayGetFlt(_a, i0) < AiArrayGetFlt(_a, i1));
+      }
+      
+   private:
+      
+      AtArray *_a;
+   };
+   
+   void SortPositions(AtArray *a, unsigned int *sorted)
+   {
       if (a && sorted && a->nelements > 0)
       {
-         float p0, p1;
-         int tmp;
-
-         bool swapped = true;
          unsigned int n = a->nelements;
-
+         
          for (unsigned int i=0; i<n; ++i)
          {
             sorted[i] = i;
          }
-
-         while (swapped)
-         {
-            swapped = false;
-            n -= 1;
-            for (unsigned int i=0; i<n; ++i)
-            {
-               p0 = AiArrayGetFlt(a, sorted[i]);
-               p1 = AiArrayGetFlt(a, sorted[i + 1]);
-               if (p0 > p1)
-               {
-                  swapped = true;
-                  modified = true;
-
-                  tmp = sorted[i];
-                  sorted[i] = sorted[i + 1];
-                  sorted[i + 1] = tmp;
-               }
-            }
-         }
+         
+         ComparePositions cmp(a);
+         
+         std::sort(sorted, sorted + n, cmp);
       }
-
-      return modified;
    }
 }
 
