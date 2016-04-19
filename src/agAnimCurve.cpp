@@ -53,18 +53,6 @@ static const char* InfinityNames[] =
    NULL
 };
 
-struct NodeData
-{
-   gmath::TCurve<float> *curve;
-   AtArray *samples;
-   bool input_is_frame_offset;
-   float motion_start;
-   float motion_end;
-   float shutter_start;
-   float shutter_end;
-   float frame;
-};
-
 namespace
 {
    class ComparePositions
@@ -104,42 +92,74 @@ namespace
    }
 }
 
+namespace SSTR
+{
+   extern AtString input;
+   extern AtString input_is_frame_offset;
+   extern AtString frame;
+   extern AtString linkable;
+   extern AtString motion_start_frame;
+   extern AtString motion_end_frame;
+   extern AtString relative_motion_frame;
+   extern AtString motion_steps;
+   extern AtString positions;
+   extern AtString values;
+   extern AtString interpolations;
+   extern AtString in_tangents;
+   extern AtString in_weights;
+   extern AtString out_tangents;
+   extern AtString out_weights;
+   extern AtString default_interpolation;
+   extern AtString pre_infinity;
+   extern AtString post_infinity;
+}
+
 node_parameters
 {
-   AiParameterFlt("input", 0.0f);
-   AiParameterBool("input_is_frame_offset", true); // use input param as on offset to options "frame"
-   AiParameterArray("positions", AiArrayAllocate(0, 0, AI_TYPE_FLOAT));
-   AiParameterArray("values", AiArrayAllocate(0, 0, AI_TYPE_FLOAT));
-   AiParameterArray("interpolations", AiArrayAllocate(0, 0, AI_TYPE_INT)); // can be empty
-   AiParameterArray("in_tangents", AiArrayAllocate(0, 0, AI_TYPE_FLOAT)); // can be empty, interpret as 'slope' -> dy/dx
-   AiParameterArray("in_weights", AiArrayAllocate(0, 0, AI_TYPE_FLOAT));  // can be empty
-   AiParameterArray("out_tangents", AiArrayAllocate(0, 0, AI_TYPE_FLOAT)); // can be empty, interpret as 'slope' -> dy/dx
-   AiParameterArray("out_weights", AiArrayAllocate(0, 0, AI_TYPE_FLOAT));  // can be empty
-   AiParameterEnum("default_interpolation", 0, InterpolationNames);
-   AiParameterEnum("pre_infinity", 0, InfinityNames);
-   AiParameterEnum("post_infinity", 0, InfinityNames);
+   AiParameterFlt(SSTR::input, 0.0f);
+   AiParameterBool(SSTR::input_is_frame_offset, true); // use input param as on offset to options 'frame' attribute
+   AiParameterArray(SSTR::positions, AiArrayAllocate(0, 0, AI_TYPE_FLOAT));
+   AiParameterArray(SSTR::values, AiArrayAllocate(0, 0, AI_TYPE_FLOAT));
+   AiParameterArray(SSTR::interpolations, AiArrayAllocate(0, 0, AI_TYPE_INT)); // can be empty
+   AiParameterArray(SSTR::in_tangents, AiArrayAllocate(0, 0, AI_TYPE_FLOAT)); // can be empty, interpret as 'slope' -> dy/dx
+   AiParameterArray(SSTR::in_weights, AiArrayAllocate(0, 0, AI_TYPE_FLOAT));  // can be empty
+   AiParameterArray(SSTR::out_tangents, AiArrayAllocate(0, 0, AI_TYPE_FLOAT)); // can be empty, interpret as 'slope' -> dy/dx
+   AiParameterArray(SSTR::out_weights, AiArrayAllocate(0, 0, AI_TYPE_FLOAT));  // can be empty
+   AiParameterEnum(SSTR::default_interpolation, 0, InterpolationNames);
+   AiParameterEnum(SSTR::pre_infinity, 0, InfinityNames);
+   AiParameterEnum(SSTR::post_infinity, 0, InfinityNames);
 
-   AiMetaDataSetBool(mds, "input_is_frame_offset", "linkable", false);
-   AiMetaDataSetBool(mds, "positions", "linkable", false);
-   AiMetaDataSetBool(mds, "values", "linkable", false);
-   AiMetaDataSetBool(mds, "interpolations", "linkable", false);
-   AiMetaDataSetBool(mds, "in_tangents", "linkable", false);
-   AiMetaDataSetBool(mds, "in_weights", "linkable", false);
-   AiMetaDataSetBool(mds, "out_tangents", "linkable", false);
-   AiMetaDataSetBool(mds, "out_weights", "linkable", false);
-   AiMetaDataSetBool(mds, "default_interpolation", "linkable", false);
-   AiMetaDataSetBool(mds, "pre_infinity", "linkable", false);
-   AiMetaDataSetBool(mds, "post_infinity", "linkable", false);
+   AiMetaDataSetBool(mds, SSTR::input_is_frame_offset, SSTR::linkable, false);
+   AiMetaDataSetBool(mds, SSTR::positions, SSTR::linkable, false);
+   AiMetaDataSetBool(mds, SSTR::values, SSTR::linkable, false);
+   AiMetaDataSetBool(mds, SSTR::interpolations, SSTR::linkable, false);
+   AiMetaDataSetBool(mds, SSTR::in_tangents, SSTR::linkable, false);
+   AiMetaDataSetBool(mds, SSTR::in_weights, SSTR::linkable, false);
+   AiMetaDataSetBool(mds, SSTR::out_tangents, SSTR::linkable, false);
+   AiMetaDataSetBool(mds, SSTR::out_weights, SSTR::linkable, false);
+   AiMetaDataSetBool(mds, SSTR::default_interpolation, SSTR::linkable, false);
+   AiMetaDataSetBool(mds, SSTR::pre_infinity, SSTR::linkable, false);
+   AiMetaDataSetBool(mds, SSTR::post_infinity, SSTR::linkable, false);
 
 }
 
+struct NodeData
+{
+   gmath::TCurve<float> *curve;
+   AtArray *samples;
+   bool inputIsOffset;
+   float motionStart;
+   float motionEnd;
+   float frame;
+};
+
 node_initialize
 {
-   NodeData *data = (NodeData*) AiMalloc(sizeof(NodeData));
+   NodeData *data = new NodeData();
    data->curve = 0;
    data->samples = 0;
-   data->motion_start = 0.0f;
-   data->motion_end = 0.0f;
+   data->motionStart = 0.0f;
+   data->motionEnd = 0.0f;
    data->frame = 0.0f;
    AiNodeSetLocalData(node, data);
 }
@@ -154,9 +174,9 @@ node_update
       data->samples = 0;
    }
    
-   data->input_is_frame_offset = AiNodeGetBool(node, "input_is_frame_offset");
-   data->motion_start = 0.0f;
-   data->motion_end = 0.0f;
+   data->inputIsOffset = AiNodeGetBool(node, SSTR::input_is_frame_offset);
+   data->motionStart = 0.0f;
+   data->motionEnd = 0.0f;
    data->frame = 0.0f;
    
    bool weighted = false;
@@ -166,25 +186,25 @@ node_update
    float mend = 0.0f;
    int msteps = 0;
 
-   if (data->input_is_frame_offset)
+   if (data->inputIsOffset)
    {
       AtNode *opts = AiUniverseGetOptions();
       
-      if (AiNodeLookUpUserParameter(opts, "frame") != 0)
+      if (AiNodeLookUpUserParameter(opts, SSTR::frame) != 0)
       {
-         frame = AiNodeGetFlt(opts, "frame");
+         frame = AiNodeGetFlt(opts, SSTR::frame);
          mstart = frame;
          mend = frame;
          msteps = 1;
          
-         if (AiNodeLookUpUserParameter(opts, "motion_start_frame") != 0 &&
-             AiNodeLookUpUserParameter(opts, "motion_end_frame") != 0)
+         if (AiNodeLookUpUserParameter(opts, SSTR::motion_start_frame) != 0 &&
+             AiNodeLookUpUserParameter(opts, SSTR::motion_end_frame) != 0)
          {
-            mstart = AiNodeGetFlt(opts, "motion_start_frame");
-            mend = AiNodeGetFlt(opts, "motion_end_frame");
+            mstart = AiNodeGetFlt(opts, SSTR::motion_start_frame);
+            mend = AiNodeGetFlt(opts, SSTR::motion_end_frame);
             
-            if (AiNodeLookUpUserParameter(opts, "relative_motion_frame") != 0 &&
-                AiNodeGetBool(opts, "relative_motion_frame"))
+            if (AiNodeLookUpUserParameter(opts, SSTR::relative_motion_frame) != 0 &&
+                AiNodeGetBool(opts, SSTR::relative_motion_frame))
             {
                mstart += frame;
                mend += frame;
@@ -206,9 +226,9 @@ node_update
                }
             }
             
-            if (AiNodeLookUpUserParameter(opts, "motion_steps") != 0)
+            if (AiNodeLookUpUserParameter(opts, SSTR::motion_steps) != 0)
             {
-               int tmp = AiNodeGetInt(opts, "motions_steps");
+               int tmp = AiNodeGetInt(opts, SSTR::motion_steps);
                if (tmp > 0)
                {
                   msteps = tmp;
@@ -236,15 +256,15 @@ node_update
       }
    }
 
-   AtArray *p = AiNodeGetArray(node, "positions");
-   AtArray *v = AiNodeGetArray(node, "values");
-   AtArray *i = AiNodeGetArray(node, "interpolations");
-   AtArray *is = AiNodeGetArray(node, "in_tangents");
-   AtArray *iw = AiNodeGetArray(node, "in_weights");
-   AtArray *os = AiNodeGetArray(node, "out_tangents");
-   AtArray *ow = AiNodeGetArray(node, "out_weights");
+   AtArray *p = AiNodeGetArray(node, SSTR::positions);
+   AtArray *v = AiNodeGetArray(node, SSTR::values);
+   AtArray *i = AiNodeGetArray(node, SSTR::interpolations);
+   AtArray *is = AiNodeGetArray(node, SSTR::in_tangents);
+   AtArray *iw = AiNodeGetArray(node, SSTR::in_weights);
+   AtArray *os = AiNodeGetArray(node, SSTR::out_tangents);
+   AtArray *ow = AiNodeGetArray(node, SSTR::out_weights);
 
-   Interpolation defi = (Interpolation) AiNodeGetInt(node, "default_interpolation");
+   Interpolation defi = (Interpolation) AiNodeGetInt(node, SSTR::default_interpolation);
 
    if (p->nelements != v->nelements)
    {
@@ -266,15 +286,15 @@ node_update
    }
    else
    {
-      bool has_interpolations = false;
-      bool has_in_tangents = false;
-      bool has_out_tangents = false;
+      bool hasInterpolations = false;
+      bool hasInTangents = false;
+      bool hasOutTangents = false;
       
       if (i->nelements > 0)
       {
          if (i->nelements == p->nelements && i->type == AI_TYPE_INT)
          {
-            has_interpolations = true;
+            hasInterpolations = true;
          }
          else
          {
@@ -290,7 +310,7 @@ node_update
       {
          if (is->nelements == p->nelements && is->type == AI_TYPE_FLOAT)
          {
-            has_in_tangents = true;
+            hasInTangents = true;
          }
          else
          {
@@ -306,7 +326,7 @@ node_update
       {
          if (os->nelements == p->nelements && os->type == AI_TYPE_FLOAT)
          {
-            has_out_tangents = true;
+            hasOutTangents = true;
          }
          else
          {
@@ -342,8 +362,8 @@ node_update
 
       data->curve->removeAll();
 
-      data->curve->setPreInfinity((gmath::Curve::Infinity) AiNodeGetInt(node, "pre_infinity"));
-      data->curve->setPostInfinity((gmath::Curve::Infinity) AiNodeGetInt(node, "post_infinity"));
+      data->curve->setPreInfinity((gmath::Curve::Infinity) AiNodeGetInt(node, SSTR::pre_infinity));
+      data->curve->setPostInfinity((gmath::Curve::Infinity) AiNodeGetInt(node, SSTR::post_infinity));
 
       // Sort positions
 
@@ -355,9 +375,9 @@ node_update
       {
          unsigned int ki = sortedkeys[k];
          size_t idx = data->curve->insert(AiArrayGetFlt(p, ki), AiArrayGetFlt(v, ki));
-         data->curve->setInterpolation(idx, (gmath::Curve::Interpolation)(has_interpolations ? AiArrayGetInt(i, ki) : defi));
-         data->curve->setInTangent(idx, gmath::Curve::T_CUSTOM, (has_in_tangents ? AiArrayGetFlt(is, ki) : 0.0f));
-         data->curve->setOutTangent(idx, gmath::Curve::T_CUSTOM, (has_out_tangents ? AiArrayGetFlt(os, ki) : 0.0f));
+         data->curve->setInterpolation(idx, (gmath::Curve::Interpolation)(hasInterpolations ? AiArrayGetInt(i, ki) : defi));
+         data->curve->setInTangent(idx, gmath::Curve::T_CUSTOM, (hasInTangents ? AiArrayGetFlt(is, ki) : 0.0f));
+         data->curve->setOutTangent(idx, gmath::Curve::T_CUSTOM, (hasOutTangents ? AiArrayGetFlt(os, ki) : 0.0f));
          if (weighted)
          {
             data->curve->setInWeight(idx, AiArrayGetFlt(iw, ki));
@@ -370,17 +390,17 @@ node_update
    
    if (data->curve && bake)
    {
-      // data->input_is_frame_offset is necessarilty true
+      // data->input_is_frame_offset is necessarily true if we reach this block
       
-      if (AiNodeIsLinked(node, "input"))
+      if (AiNodeIsLinked(node, SSTR::input))
       {
          data->frame = frame;
-         data->motion_start = mstart;
-         data->motion_end = mend;
+         data->motionStart = mstart;
+         data->motionEnd = mend;
       }
       else
       {
-         float offset = AiNodeGetFlt(node, "input");
+         float offset = AiNodeGetFlt(node, SSTR::input);
          
          float fincr = mend - mstart;
          if (msteps > 1)
@@ -414,7 +434,8 @@ node_finish
    {
       AiArrayDestroy(data->samples);
    }
-   AiFree(data);
+   
+   delete data;
 }
 
 shader_evaluate
@@ -431,16 +452,16 @@ shader_evaluate
    {
       float input = AiShaderEvalParamFlt(p_input);
       
-      if (data->input_is_frame_offset)
+      if (data->inputIsOffset)
       {
-         if (data->motion_end <= data->motion_start)
+         if (data->motionEnd <= data->motionStart)
          {
             // invalid motion range, always output value at frame+offset
             input += data->frame;
          }
          else
          {
-            input += data->motion_start + sg->time * (data->motion_end - data->motion_start);
+            input += data->motionStart + sg->time * (data->motionEnd - data->motionStart);
          }
       }
       
