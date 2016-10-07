@@ -1,4 +1,37 @@
 [node anim_curve]
    maya.classification STRING "utility/general"
    maya.id INT 0x001165F6
+   
+   [attr input_is_frame_offset]
+      linkable BOOL false
+   
+   [attr positions]
+      linkable BOOL false
+   
+   [attr values]
+      linkable BOOL false
+   
+   [attr interpolations]
+      linkable BOOL false
+   
+   [attr in_tangents]
+      linkable BOOL false
+   
+   [attr in_weights]
+      linkable BOOL false
+   
+   [attr out_tangents]
+      linkable BOOL false
+   
+   [attr out_weights]
+      linkable BOOL false
+   
+   [attr default_interpolation]
+      linkable BOOL false
+   
+   [attr pre_infinity]
+      linkable BOOL false
+   
+   [attr post_infinity]
+      linkable BOOL false
 

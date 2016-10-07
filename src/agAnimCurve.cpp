@@ -128,19 +128,6 @@ node_parameters
    AiParameterEnum(SSTR::default_interpolation, 0, InterpolationNames);
    AiParameterEnum(SSTR::pre_infinity, 0, InfinityNames);
    AiParameterEnum(SSTR::post_infinity, 0, InfinityNames);
-
-   AiMetaDataSetBool(mds, SSTR::input_is_frame_offset, SSTR::linkable, false);
-   AiMetaDataSetBool(mds, SSTR::positions, SSTR::linkable, false);
-   AiMetaDataSetBool(mds, SSTR::values, SSTR::linkable, false);
-   AiMetaDataSetBool(mds, SSTR::interpolations, SSTR::linkable, false);
-   AiMetaDataSetBool(mds, SSTR::in_tangents, SSTR::linkable, false);
-   AiMetaDataSetBool(mds, SSTR::in_weights, SSTR::linkable, false);
-   AiMetaDataSetBool(mds, SSTR::out_tangents, SSTR::linkable, false);
-   AiMetaDataSetBool(mds, SSTR::out_weights, SSTR::linkable, false);
-   AiMetaDataSetBool(mds, SSTR::default_interpolation, SSTR::linkable, false);
-   AiMetaDataSetBool(mds, SSTR::pre_infinity, SSTR::linkable, false);
-   AiMetaDataSetBool(mds, SSTR::post_infinity, SSTR::linkable, false);
-
 }
 
 struct NodeData
