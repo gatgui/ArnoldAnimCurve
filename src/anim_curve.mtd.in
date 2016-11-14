@@ -1,4 +1,4 @@
-[node anim_curve]
+[node ${prefix}anim_curve]
    maya.classification STRING "utility/general"
    maya.id INT 0x001165F6
    

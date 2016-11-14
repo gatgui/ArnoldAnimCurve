@@ -1,2 +1,0 @@
-excons = [git]git://github.com/gatgui/excons.git
-gmath = [git]git://github.com/gatgui/gmath.git

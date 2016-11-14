@@ -1,0 +1,8 @@
+/release/
+/debug/
+/.build/
+/eco/
+excons.cache
+*.dblite
+anim_curve.env.tmp
+src/*.mtd

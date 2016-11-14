@@ -1,7 +1,11 @@
 #include <ai.h>
 #include <gmath/curve.h>
 
-AI_SHADER_NODE_EXPORT_METHODS(agAnimCurveMtd);
+#ifndef PREFIX
+#  define PREFIX ""
+#endif
+
+AI_SHADER_NODE_EXPORT_METHODS(AnimCurveMtd);
 
 enum AnimCurveParams
 {
@@ -199,7 +203,7 @@ node_update
             
             if (mstart > mend || frame < mstart || frame > mend)
             {
-               AiMsgWarning("[agAnimCurve] Invalid values \"motion_start_frame\" and \"motion_end_frame\" parameters on options node. Default both to %f", frame);
+               AiMsgWarning("[%sanim_curve] Invalid values \"motion_start_frame\" and \"motion_end_frame\" parameters on options node. Default both to %f", PREFIX, frame);
                mstart = frame;
                mend = frame;
             }
@@ -222,24 +226,30 @@ node_update
                }
                else
                {
-                  AiMsgWarning("[agAnimCurve] Invalid value for \"motion_steps\" parameter on options node. Default to %d", msteps);
+                  AiMsgWarning("[%sanim_curve] Invalid value for \"motion_steps\" parameter on options node. Default to %d", PREFIX, msteps);
                }
             }
             else
             {
-               AiMsgWarning("[agAnimCurve] No \"motion_steps\" parameter on options node. Default to %d", msteps);
+               AiMsgWarning("[%sanim_curve] No \"motion_steps\" parameter on options node. Default to %d", PREFIX, msteps);
+            }
+
+            if (msteps >= 256)
+            {
+               AiMsgWarning("[%sanim_curve] Clamping motion steps count to 255.", PREFIX);
+               msteps = 255;
             }
          }
          else
          {
-            AiMsgWarning("[agAnimCurve] No \"motion_start_frame\" and/or \"motion_end_frame\" parameters on options node. Bake a single sample");
+            AiMsgWarning("[%sanim_curve] No \"motion_start_frame\" and/or \"motion_end_frame\" parameters on options node. Bake a single sample", PREFIX);
          }
          
          bake = true;
       }
       else
       {
-         AiMsgWarning("[agAnimCurve] No \"frame\" parameter on options node.");
+         AiMsgWarning("[%sanim_curve] No \"frame\" parameter on options node.", PREFIX);
       }
    }
 
@@ -255,7 +265,7 @@ node_update
 
    if (p->nelements != v->nelements)
    {
-      AiMsgWarning("[agAnimCurve] 'positions' and 'values' input arrays must be of the same length");
+      AiMsgWarning("[%sanim_curve] 'positions' and 'values' input arrays must be of the same length", PREFIX);
       if (data->curve)
       {
          delete data->curve;
@@ -264,7 +274,7 @@ node_update
    }
    else if (p->type != AI_TYPE_FLOAT || v->type != AI_TYPE_FLOAT)
    {
-      AiMsgWarning("[agAnimCurve] 'positions' and 'values' input arrays must be of type float");
+      AiMsgWarning("[%sanim_curve] 'positions' and 'values' input arrays must be of type float", PREFIX);
       if (data->curve)
       {
          delete data->curve;
@@ -285,12 +295,12 @@ node_update
          }
          else
          {
-            AiMsgWarning("[agAnimCurve] Invalid 'interpolations' type and/or size. All keys's interpolation type set to 'default_interpolation'.");
+            AiMsgWarning("[%sanim_curve] Invalid 'interpolations' type and/or size. All keys's interpolation type set to 'default_interpolation'.", PREFIX);
          }
       }
       else
       {
-         AiMsgWarning("[agAnimCurve] No 'interpolations' set. All keys's interpolation type set to 'default_interpolation'.");
+         AiMsgWarning("[%sanim_curve] No 'interpolations' set. All keys's interpolation type set to 'default_interpolation'.", PREFIX);
       }
       
       if (is->nelements > 0)
@@ -301,12 +311,12 @@ node_update
          }
          else
          {
-            AiMsgWarning("[agAnimCurve] Invalid in_tangents type and/or size. All keys' input tangent set flat.");
+            AiMsgWarning("[%sanim_curve] Invalid in_tangents type and/or size. All keys' input tangent set flat.", PREFIX);
          }
       }
       else
       {
-         AiMsgWarning("[agAnimCurve] No 'in_tangents' set. All keys' input tangent set flat.");
+         AiMsgWarning("[%sanim_curve] No 'in_tangents' set. All keys' input tangent set flat.", PREFIX);
       }
       
       if (os->nelements > 0)
@@ -317,23 +327,23 @@ node_update
          }
          else
          {
-            AiMsgWarning("[agAnimCurve] Invalid out_tangents type and/or size. All keys' output tangent set flat.");
+            AiMsgWarning("[%sanim_curve] Invalid out_tangents type and/or size. All keys' output tangent set flat.", PREFIX);
          }
       }
       else
       {
-         AiMsgWarning("[agAnimCurve] No 'out_tangents' set. All keys' output tangent set flat.");
+         AiMsgWarning("[%sanim_curve] No 'out_tangents' set. All keys' output tangent set flat.", PREFIX);
       }
       
       if (iw->nelements > 0)
       {
          if (iw->nelements != p->nelements || iw->type != AI_TYPE_FLOAT)
          {
-            AiMsgWarning("[agAnimCurve] Invalid input weights type and/or size. Evaluate as non-weigted.");
+            AiMsgWarning("[%sanim_curve] Invalid input weights type and/or size. Evaluate as non-weigted.", PREFIX);
          }
          else if (ow->nelements != p->nelements || ow->type != AI_TYPE_FLOAT)
          {
-            AiMsgWarning("[agAnimCurve] Invalid output weights type and/or size. Evaluate as non-weigted.");
+            AiMsgWarning("[%sanim_curve] Invalid output weights type and/or size. Evaluate as non-weigted.", PREFIX);
          }
          else
          {
@@ -395,7 +405,7 @@ node_update
             fincr /= float(msteps - 1);
          }
          
-         data->samples = AiArrayAllocate(1, msteps, AI_TYPE_FLOAT);
+         data->samples = AiArrayAllocate(1, AtByte(msteps), AI_TYPE_FLOAT);
          
          int step = 0;
          

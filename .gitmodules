@@ -1,0 +1,6 @@
+[submodule "excons"]
+	path = excons
+	url = git://github.com/gatgui/excons.git
+[submodule "gmath"]
+	path = gmath
+	url = git://github.com/gatgui/gmath.git
