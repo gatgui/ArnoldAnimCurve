@@ -44,7 +44,9 @@ prjs = [
   }
 ]
 
-excons.DeclareTargets(env, prjs)
+targets = excons.DeclareTargets(env, prjs)
+
+targets[name].extend(mtd)
 
 excons.EcosystemDist(env, "anim_curve.env", {name: ""}, name=name)
 
