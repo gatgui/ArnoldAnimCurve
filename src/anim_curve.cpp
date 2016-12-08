@@ -158,7 +158,7 @@ node_parameters
    AiParameterEnum(SSTR::post_infinity, 0, InfinityNames);
 }
 
-struct NodeData
+struct AnimCurveData
 {
    gmath::TCurve<float> *curve;
    AtArray *samples;
@@ -170,7 +170,7 @@ struct NodeData
 
 node_initialize
 {
-   NodeData *data = new NodeData();
+   AnimCurveData *data = new AnimCurveData();
    data->curve = 0;
    data->samples = 0;
    data->motionStart = 0.0f;
@@ -181,7 +181,7 @@ node_initialize
 
 node_update
 {
-   NodeData *data = (NodeData*) AiNodeGetLocalData(node);
+   AnimCurveData *data = (AnimCurveData*) AiNodeGetLocalData(node);
    
    if (data->samples)
    {
@@ -445,7 +445,7 @@ node_update
 
 node_finish
 {
-   NodeData *data = (NodeData*) AiNodeGetLocalData(node);
+   AnimCurveData *data = (AnimCurveData*) AiNodeGetLocalData(node);
 
    if (data->curve)
    {
@@ -461,7 +461,7 @@ node_finish
 
 shader_evaluate
 {
-   NodeData *data = (NodeData*) AiNodeGetLocalData(node);
+   AnimCurveData *data = (AnimCurveData*) AiNodeGetLocalData(node);
    
    float rv = 0.0f;
 
