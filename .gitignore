@@ -2,7 +2,9 @@
 /debug/
 /.build/
 /eco/
-excons.cache
+/src/*.mtd
+/maya/*.py
 *.dblite
+*.config
+excons.cache
 anim_curve.env.tmp
-src/*.mtd

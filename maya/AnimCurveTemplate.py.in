@@ -1,0 +1,26 @@
+import pymel.core as pm
+from mtoa.ui.ae.shaderTemplate import ShaderAETemplate
+
+class AE@MAYA_NODENAME@Template(ShaderAETemplate):
+   def setup(self):
+      self.beginScrollLayout()
+      
+      self.beginLayout("Parameters", collapse=False)
+      self.addControl("default_interpolation")
+      self.addControl("in_tangents")
+      self.addControl("in_weights")
+      self.addControl("input")
+      self.addControl("input_is_frame_offset")
+      self.addControl("interpolations")
+      self.addControl("out_tangents")
+      self.addControl("out_weights")
+      self.addControl("positions")
+      self.addControl("post_infinity")
+      self.addControl("pre_infinity")
+      self.addControl("values")
+      self.endLayout()
+      
+      pm.mel.AEdependNodeTemplate(self.nodeName)
+      self.addExtraControls()
+      self.endScrollLayout()
+
