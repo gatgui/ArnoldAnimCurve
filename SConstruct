@@ -15,7 +15,7 @@ prefix = excons.GetArgument("prefix", "gf_")
 name = "%sanim_curve" % prefix
 spl = name.split("_")
 maya_name = spl[0] + "".join(map(lambda x: x[0].upper() + x[1:], spl[1:]))
-opts = {"PREFIX": prefix, "MAYA_NODENAME": maya_name}
+opts = {"PREFIX": prefix, "ANIMCURVE_MAYA_NODENAME": maya_name}
 
 GenerateMtd = excons.config.AddGenerator(env, "mtd", opts)
 GenerateMayaAE = excons.config.AddGenerator(env, "mayaAE", opts)
