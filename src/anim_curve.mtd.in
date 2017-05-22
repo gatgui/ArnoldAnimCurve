@@ -1,7 +1,7 @@
 [node @PREFIX@anim_curve]
    maya.classification STRING "utility/general"
    maya.id INT 0x001165F6
-   maya.name STRING @ANIMCURVE_MAYA_NODENAME@
+   maya.name STRING "@ANIMCURVE_MAYA_NODENAME@"
    
    [attr input_is_frame_offset]
       linkable BOOL false
