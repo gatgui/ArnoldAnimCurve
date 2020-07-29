@@ -104,9 +104,9 @@ namespace
    
    void SortPositions(AtArray *a, unsigned int *sorted)
    {
-      if (a && sorted && a->nelements > 0)
+      if (a && sorted && AiArrayGetNumElements(a) > 0)
       {
-         unsigned int n = a->nelements;
+         unsigned int n = AiArrayGetNumElements(a);
          
          for (unsigned int i=0; i<n; ++i)
          {
@@ -287,7 +287,7 @@ node_update
 
    Interpolation defi = (Interpolation) AiNodeGetInt(node, SSTR::default_interpolation);
 
-   if (p->nelements != v->nelements)
+   if (AiArrayGetNumElements(p) != AiArrayGetNumElements(v))
    {
       AiMsgWarning("[%sanim_curve] 'positions' and 'values' input arrays must be of the same length", PREFIX);
       if (data->curve)
@@ -296,7 +296,7 @@ node_update
          data->curve = 0;
       }
    }
-   else if (p->type != AI_TYPE_FLOAT || v->type != AI_TYPE_FLOAT)
+   else if (AiArrayGetType(p) != AI_TYPE_FLOAT || AiArrayGetType(v) != AI_TYPE_FLOAT)
    {
       AiMsgWarning("[%sanim_curve] 'positions' and 'values' input arrays must be of type float", PREFIX);
       if (data->curve)
@@ -311,9 +311,9 @@ node_update
       bool hasInTangents = false;
       bool hasOutTangents = false;
       
-      if (i->nelements > 0)
+      if (AiArrayGetNumElements(i) > 0)
       {
-         if (i->nelements == p->nelements && i->type == AI_TYPE_INT)
+         if (AiArrayGetNumElements(i) == AiArrayGetNumElements(p) && AiArrayGetType(i) == AI_TYPE_INT)
          {
             hasInterpolations = true;
          }
@@ -327,9 +327,9 @@ node_update
          AiMsgWarning("[%sanim_curve] No 'interpolations' set. All keys's interpolation type set to 'default_interpolation'.", PREFIX);
       }
       
-      if (is->nelements > 0)
+      if (AiArrayGetNumElements(is) > 0)
       {
-         if (is->nelements == p->nelements && is->type == AI_TYPE_FLOAT)
+         if (AiArrayGetNumElements(is) == AiArrayGetNumElements(p) && AiArrayGetType(is) == AI_TYPE_FLOAT)
          {
             hasInTangents = true;
          }
@@ -343,9 +343,9 @@ node_update
          AiMsgWarning("[%sanim_curve] No 'in_tangents' set. All keys' input tangent set flat.", PREFIX);
       }
       
-      if (os->nelements > 0)
+      if (AiArrayGetNumElements(os) > 0)
       {
-         if (os->nelements == p->nelements && os->type == AI_TYPE_FLOAT)
+         if (AiArrayGetNumElements(os) == AiArrayGetNumElements(p) && AiArrayGetType(os) == AI_TYPE_FLOAT)
          {
             hasOutTangents = true;
          }
@@ -359,13 +359,13 @@ node_update
          AiMsgWarning("[%sanim_curve] No 'out_tangents' set. All keys' output tangent set flat.", PREFIX);
       }
       
-      if (iw->nelements > 0)
+      if (AiArrayGetNumElements(iw) > 0)
       {
-         if (iw->nelements != p->nelements || iw->type != AI_TYPE_FLOAT)
+         if (AiArrayGetNumElements(iw) != AiArrayGetNumElements(p) || AiArrayGetType(iw) != AI_TYPE_FLOAT)
          {
             AiMsgWarning("[%sanim_curve] Invalid input weights type and/or size. Evaluate as non-weigted.", PREFIX);
          }
-         else if (ow->nelements != p->nelements || ow->type != AI_TYPE_FLOAT)
+         else if (AiArrayGetNumElements(ow) != AiArrayGetNumElements(p) || AiArrayGetType(ow) != AI_TYPE_FLOAT)
          {
             AiMsgWarning("[%sanim_curve] Invalid output weights type and/or size. Evaluate as non-weigted.", PREFIX);
          }
@@ -388,11 +388,11 @@ node_update
 
       // Sort positions
 
-      unsigned int *sortedkeys = new unsigned int[p->nelements];
+      unsigned int *sortedkeys = new unsigned int[AiArrayGetNumElements(p)];
 
       SortPositions(p, sortedkeys);
 
-      for (unsigned int k=0; k<p->nelements; ++k)
+      for (unsigned int k=0; k<AiArrayGetNumElements(p); ++k)
       {
          unsigned int ki = sortedkeys[k];
          size_t idx = data->curve->insert(AiArrayGetFlt(p, ki), AiArrayGetFlt(v, ki));
@@ -429,7 +429,7 @@ node_update
             fincr /= float(msteps - 1);
          }
          
-         data->samples = AiArrayAllocate(1, AtByte(msteps), AI_TYPE_FLOAT);
+         data->samples = AiArrayAllocate(1, uint8_t(msteps), AI_TYPE_FLOAT);
          
          int step = 0;
          
@@ -489,5 +489,5 @@ shader_evaluate
       rv = data->curve->eval(input);
    }
 
-   sg->out.FLT = rv;
+   sg->out.FLT() = rv;
 }

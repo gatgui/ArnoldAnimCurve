@@ -29,7 +29,7 @@ SOFTWARE.
 #  define PREFIX ""
 #endif
 
-extern AtNodeMethods *AnimCurveMtd;
+extern const AtNodeMethods *AnimCurveMtd;
 
 namespace SSTR
 {
